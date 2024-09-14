@@ -1,0 +1,48 @@
+services:
+  db:
+    container_name: db-container
+    image: mysql:latest
+    ports:
+      - 3307:3306
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
+      - MYSQL_DATABASE=${DB_NAME}
+    networks:
+      - spring-net
+    volumes:
+      - db-data:/var/lib/mysql
+    restart: always
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
+      interval: 3s
+      retries: 5
+      start_period: 30s
+    env_file:
+      - .env
+
+  app:
+    container_name: spring-app-container
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    networks:
+      - spring-net
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always
+    environment:
+      - DATASOURCE_URL=jdbc:${DB_DIALECT}://${DB_HOST}:${DB_PORT}/${DB_NAME}
+      - DATASOURCE_USERNAME=${DB_USERNAME}
+      - DATASOURCE_PASSWORD=${DB_PASSWORD}
+    ports:
+      - 8080:8080
+
+networks:
+  spring-net:
+    name: spring-net
+volumes:
+  db-data:
+    name: db-data
